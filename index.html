@@ -3,190 +3,242 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Radar System</title>
+<title>Interactive Radar</title>
 
 <style>
-/* ===== GLOBAL ===== */
-body {
-    margin: 0;
-    background: radial-gradient(circle at center, #02140a, #000);
-    font-family: "Segoe UI", sans-serif;
-    color: #00ff9d;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
+
+/* ===== RESET ===== */
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Segoe UI, sans-serif;
 }
 
-/* ===== RADAR CONTAINER ===== */
-.radar-container {
-    position: relative;
-    width: 600px;
-    height: 600px;
-    border-radius: 50%;
+body{
+    background: radial-gradient(circle at center,#031a12,#000);
+    color:#00ffa6;
+    height:100vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+}
+
+/* ===== APP LAYOUT ===== */
+.app{
+    width:min(95vw,600px);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:15px;
+}
+
+/* ===== RADAR WRAPPER (FOR PERFECT CIRCLE) ===== */
+.radar-wrapper{
+    position:relative;
+    width:100%;
+    aspect-ratio:1/1; /* FIXES OVAL ISSUE */
+    border-radius:50%;
     box-shadow:
-        0 0 40px #00ff9d55,
-        inset 0 0 60px #00ff9d22;
+        0 0 40px #00ffa644,
+        inset 0 0 80px #00ffa622;
 }
 
-/* ===== CANVAS ===== */
-canvas {
-    width: 100%;
-    height: 100%;
-    border-radius: 50%;
-    background: radial-gradient(circle, #001b0e 0%, #000 80%);
+canvas{
+    width:100%;
+    height:100%;
+    border-radius:50%;
+    background: radial-gradient(circle,#002015,#000 85%);
 }
 
-/* ===== HUD TEXT ===== */
-.hud {
-    position: absolute;
-    top: 20px;
-    left: 20px;
-    font-size: 14px;
-    opacity: 0.8;
-    letter-spacing: 2px;
+/* ===== HUD PANEL ===== */
+.panel{
+    width:100%;
+    background:rgba(0,0,0,0.45);
+    border:1px solid #00ffa633;
+    border-radius:14px;
+    padding:12px;
+    backdrop-filter:blur(10px);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
 }
 
-.footer {
-    position: absolute;
-    bottom: 20px;
-    right: 20px;
-    font-size: 12px;
-    opacity: 0.6;
+button{
+    background:#001c14;
+    color:#00ffa6;
+    border:1px solid #00ffa655;
+    padding:8px 14px;
+    border-radius:8px;
+    cursor:pointer;
+    transition:.2s;
 }
+
+button:hover{
+    background:#003826;
+    box-shadow:0 0 10px #00ffa666;
+}
+
+.title{
+    font-weight:600;
+    letter-spacing:2px;
+    opacity:.9;
+    text-align:center;
+}
+
+.stats{
+    font-size:14px;
+    opacity:.8;
+}
+
+/* MOBILE TEXT SCALE */
+@media(max-width:500px){
+    .title{font-size:14px;}
+}
+
 </style>
 </head>
 
 <body>
 
-<div class="radar-container">
-    <canvas id="radar"></canvas>
+<div class="app">
 
-    <div class="hud">
-        RADAR SYSTEM<br>
-        STATUS: ACTIVE
-    </div>
+<div class="title">RADAR CONTROL SYSTEM</div>
 
-    <div class="footer">
-        GitHub Pages Radar UI
-    </div>
+<div class="radar-wrapper">
+<canvas id="radar"></canvas>
+</div>
+
+<div class="panel">
+<div class="stats" id="stats">Targets: 0</div>
+<button onclick="clearTargets()">Clear Targets</button>
+</div>
+
 </div>
 
 <script>
 const canvas = document.getElementById("radar");
 const ctx = canvas.getContext("2d");
 
-canvas.width = 600;
-canvas.height = 600;
-
-const centerX = canvas.width / 2;
-const centerY = canvas.height / 2;
-const radius = 280;
+function resizeCanvas(){
+    const size = canvas.clientWidth;
+    canvas.width = size;
+    canvas.height = size;
+}
+resizeCanvas();
+window.addEventListener("resize",resizeCanvas);
 
 let angle = 0;
+let targets = [];
 
-/* ===== TARGETS ===== */
-const targets = [];
-
-for (let i = 0; i < 12; i++) {
-    targets.push({
-        r: Math.random() * radius,
-        theta: Math.random() * Math.PI * 2,
-        pulse: Math.random()
-    });
+function center(){
+    return {
+        x: canvas.width/2,
+        y: canvas.height/2,
+        r: canvas.width/2 - 10
+    };
 }
 
-/* ===== DRAW GRID ===== */
-function drawGrid() {
+/* ===== GRID ===== */
+function drawGrid(){
+    const c = center();
 
-    ctx.strokeStyle = "rgba(0,255,157,0.25)";
-    ctx.lineWidth = 1;
+    ctx.strokeStyle="rgba(0,255,166,0.25)";
+    ctx.lineWidth=1;
 
-    // circles
-    for (let i = 1; i <= 4; i++) {
+    for(let i=1;i<=4;i++){
         ctx.beginPath();
-        ctx.arc(centerX, centerY, radius * (i/4), 0, Math.PI * 2);
+        ctx.arc(c.x,c.y,c.r*(i/4),0,Math.PI*2);
         ctx.stroke();
     }
 
-    // lines
-    for (let i = 0; i < 360; i += 30) {
-        const rad = i * Math.PI/180;
-
+    for(let i=0;i<360;i+=30){
+        let rad=i*Math.PI/180;
         ctx.beginPath();
-        ctx.moveTo(centerX, centerY);
+        ctx.moveTo(c.x,c.y);
         ctx.lineTo(
-            centerX + Math.cos(rad)*radius,
-            centerY + Math.sin(rad)*radius
+            c.x+Math.cos(rad)*c.r,
+            c.y+Math.sin(rad)*c.r
         );
         ctx.stroke();
     }
 }
 
-/* ===== RADAR SWEEP ===== */
-function drawSweep() {
-    const sweepWidth = 0.35;
+/* ===== SWEEP ===== */
+function drawSweep(){
+    const c=center();
 
-    const grad = ctx.createRadialGradient(
-        centerX, centerY, 0,
-        centerX, centerY, radius
+    const grad=ctx.createRadialGradient(
+        c.x,c.y,0,
+        c.x,c.y,c.r
     );
 
-    grad.addColorStop(0, "rgba(0,255,157,0.4)");
-    grad.addColorStop(1, "rgba(0,255,157,0)");
+    grad.addColorStop(0,"rgba(0,255,166,.35)");
+    grad.addColorStop(1,"rgba(0,255,166,0)");
 
-    ctx.fillStyle = grad;
+    ctx.fillStyle=grad;
 
     ctx.beginPath();
-    ctx.moveTo(centerX, centerY);
-    ctx.arc(
-        centerX,
-        centerY,
-        radius,
-        angle,
-        angle + sweepWidth
-    );
+    ctx.moveTo(c.x,c.y);
+    ctx.arc(c.x,c.y,c.r,angle,angle+0.35);
     ctx.closePath();
     ctx.fill();
 }
 
-/* ===== TARGET BLIPS ===== */
-function drawTargets() {
-
-    targets.forEach(t => {
-
-        const x = centerX + Math.cos(t.theta)*t.r;
-        const y = centerY + Math.sin(t.theta)*t.r;
-
-        t.pulse += 0.05;
-        const size = 3 + Math.sin(t.pulse)*1.5;
+/* ===== TARGETS ===== */
+function drawTargets(){
+    targets.forEach(t=>{
+        t.pulse+=0.07;
 
         ctx.beginPath();
-        ctx.arc(x, y, size, 0, Math.PI*2);
-        ctx.fillStyle = "#00ff9d";
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = "#00ff9d";
+        ctx.arc(t.x,t.y,4+Math.sin(t.pulse)*2,0,Math.PI*2);
+        ctx.fillStyle="#00ffa6";
+        ctx.shadowBlur=15;
+        ctx.shadowColor="#00ffa6";
         ctx.fill();
-        ctx.shadowBlur = 0;
+        ctx.shadowBlur=0;
     });
 }
 
-/* ===== FADE EFFECT ===== */
-function fade() {
-    ctx.fillStyle = "rgba(0,10,5,0.25)";
+/* ===== FADE TRAIL ===== */
+function fade(){
+    ctx.fillStyle="rgba(0,15,10,0.25)";
     ctx.fillRect(0,0,canvas.width,canvas.height);
 }
 
-/* ===== MAIN LOOP ===== */
-function animate() {
+/* ===== INTERACTION (TAP TO ADD TARGET) ===== */
+canvas.addEventListener("pointerdown",e=>{
+    const rect=canvas.getBoundingClientRect();
 
+    targets.push({
+        x:e.clientX-rect.left,
+        y:e.clientY-rect.top,
+        pulse:0
+    });
+
+    updateStats();
+});
+
+/* ===== CLEAR ===== */
+function clearTargets(){
+    targets=[];
+    updateStats();
+}
+
+function updateStats(){
+    document.getElementById("stats").innerText =
+        "Targets: " + targets.length;
+}
+
+/* ===== LOOP ===== */
+function animate(){
     fade();
     drawGrid();
     drawTargets();
     drawSweep();
 
-    angle += 0.02;
-
+    angle+=0.02;
     requestAnimationFrame(animate);
 }
 
